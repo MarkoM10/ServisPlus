@@ -3,6 +3,7 @@ import AuthForm from "../components/AuthForm";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../types/types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen() {
   const [message, setMessage] = useState("");
@@ -14,7 +15,7 @@ export default function LoginScreen() {
     setMessage("");
 
     try {
-      const res = await fetch("http://192.168.8.130:4000/auth/login", {
+      const res = await fetch("http://172.20.10.2:4000/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -24,9 +25,12 @@ export default function LoginScreen() {
 
       if (!res.ok) throw new Error(data.error || "Greška pri prijavi");
 
+      await AsyncStorage.setItem("token", data.token);
+
       setMessage("Uspešno prijavljen!");
       setMessageType("success");
-      console.log(data.token);
+
+      navigation.replace("Home");
     } catch (err: any) {
       setMessage(err.message);
       setMessageType("error");

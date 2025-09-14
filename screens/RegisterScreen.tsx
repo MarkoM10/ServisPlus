@@ -3,6 +3,7 @@ import AuthForm from "../components/AuthForm";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../types/types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function RegisterScreen() {
   const [message, setMessage] = useState("");
@@ -14,7 +15,7 @@ export default function RegisterScreen() {
     setMessage("");
 
     try {
-      const res = await fetch("http://192.168.8.130:4000/auth/register", {
+      const res = await fetch("http://172.20.10.2:4000/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: "Marko", email, password }),
@@ -24,8 +25,11 @@ export default function RegisterScreen() {
 
       if (!res.ok) throw new Error(data.error || "Greška pri registraciji");
 
+      await AsyncStorage.setItem("token", data.token);
+
       setMessage("Uspešno registrovan!");
       setMessageType("success");
+      navigation.replace("Home");
     } catch (err: any) {
       setMessage(err.message);
       setMessageType("error");
