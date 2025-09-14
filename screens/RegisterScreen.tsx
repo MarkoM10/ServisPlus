@@ -1,9 +1,18 @@
-import React from "react";
-import { Alert } from "react-native";
+import React, { useState } from "react";
 import AuthForm from "../components/AuthForm";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../types/types";
 
 export default function RegisterScreen() {
+  const [message, setMessage] = useState("");
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [messageType, setMessageType] = useState<"success" | "error">("error");
+
   const handleRegister = async (email: string, password: string) => {
+    setMessage("");
+
     try {
       const res = await fetch("http://192.168.8.130:4000/auth/register", {
         method: "POST",
@@ -15,11 +24,23 @@ export default function RegisterScreen() {
 
       if (!res.ok) throw new Error(data.error || "Greška pri registraciji");
 
-      Alert.alert("Uspešno registrovan!", `Token: ${data.token}`);
+      setMessage("Uspešno registrovan!");
+      setMessageType("success");
     } catch (err: any) {
-      Alert.alert("Greška", err.message);
+      setMessage(err.message);
+      setMessageType("error");
     }
   };
 
-  return <AuthForm onSubmit={handleRegister} buttonLabel="Registruj se" />;
+  return (
+    <AuthForm
+      onSubmit={handleRegister}
+      buttonLabel="Registruj se"
+      message={message}
+      messageType={messageType}
+      footerText="Već imaš nalog?"
+      footerLinkLabel="Prijavi se"
+      onFooterPress={() => navigation.navigate("Login")}
+    />
+  );
 }
