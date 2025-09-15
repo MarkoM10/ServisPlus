@@ -2,113 +2,114 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  FlatList,
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Modal,
   Alert,
+  FlatList,
+  Modal,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
-import { useNavigation } from "@react-navigation/native";
-import { Typography } from "../styles/typography";
-import colors from "../styles/colors";
+import { useRoute, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../types/types";
+import colors from "../styles/colors";
+import { Typography } from "../styles/typography";
 import { BASE_IP } from "../utils/utils";
 
-interface Vehicle {
+type ReminderRouteProp = RouteProp<RootStackParamList, "Reminder">;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+interface Reminder {
   id: number;
-  make: string;
-  model: string;
-  year: number;
-  mileage?: number;
-  image_url?: string;
+  due_date?: string;
+  due_mileage?: number;
+  notified?: boolean;
 }
 
-const VehiclesScreen = () => {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+const ReminderScreen = () => {
+  const route = useRoute<ReminderRouteProp>();
+  const navigation = useNavigation<NavigationProp>();
+  const { serviceItemId } = route.params;
+
+  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [form, setForm] = useState({
-    make: "",
-    model: "",
-    year: "",
-    mileage: "",
-    image_url: "",
+    due_date: "",
+    due_mileage: "",
   });
 
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-
   useEffect(() => {
-    fetchVehicles();
+    fetchReminders();
   }, []);
 
-  const fetchVehicles = async () => {
+  const fetchReminders = async () => {
     try {
       const token = await AsyncStorage.getItem("token");
-      const res = await axios.get(`http://${BASE_IP}:4000/vehicles`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setVehicles(res.data.vehicles);
+      const res = await axios.get(
+        `http://${BASE_IP}:4000/services/${serviceItemId}/reminders`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setReminders(res.data.reminders || []);
     } catch (err) {
-      console.error("Greška pri dohvatanju vozila:", err);
+      console.error("Greška pri dohvatanju podsetnika:", err);
     }
   };
 
-  const handleAddVehicle = async () => {
+  const handleSaveReminder = async () => {
     const token = await AsyncStorage.getItem("token");
     try {
       await axios.post(
-        `http://${BASE_IP}:4000/vehicles`,
+        `http://${BASE_IP}:4000/services/${serviceItemId}/reminders`,
         {
-          make: form.make,
-          model: form.model,
-          year: parseInt(form.year),
-          mileage: parseInt(form.mileage),
-          image_url: form.image_url,
+          due_date: form.due_date,
+          due_mileage: parseInt(form.due_mileage),
         },
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+      setForm({ due_date: "", due_mileage: "" });
       setModalVisible(false);
-      setForm({ make: "", model: "", year: "", mileage: "", image_url: "" });
-      fetchVehicles();
+      Alert.alert("Uspeh", "Podsetnik je sačuvan.");
+      fetchReminders();
     } catch (err) {
-      console.error("Greška pri dodavanju vozila:", err);
-      Alert.alert("Greška", "Neuspešno dodavanje vozila.");
+      console.error("Greška pri čuvanju podsetnika:", err);
+      Alert.alert("Greška", "Neuspešno čuvanje podsetnika.");
     }
   };
 
-  const renderVehicle = ({ item }: { item: Vehicle }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => navigation.navigate("Services", { vehicleId: item.id })}
-    >
-      <Text style={Typography.text}>
-        {item.make} {item.model} ({item.year})
+  const renderReminder = ({ item }: { item: Reminder }) => (
+    <View style={styles.card}>
+      <Text style={[Typography.text, { color: colors.text }]}>
+        Datum: {item.due_date?.slice(0, 10)}
       </Text>
-      <Text style={[Typography.text, { color: colors.muted }]}>
-        Kilometraža: {item.mileage} km
+      <Text style={[Typography.text, { color: colors.text }]}>
+        Kilometraža: {item.due_mileage} km
       </Text>
-    </TouchableOpacity>
+      <Text style={[Typography.text, { color: colors.text }]}>
+        Status: {item.notified ? "Poslato" : "Čeka"}
+      </Text>
+    </View>
   );
 
   return (
     <View style={styles.screen}>
       <Text style={[Typography.title, { color: colors.card }]}>
-        Moja vozila
+        Podsetnici za servis
       </Text>
 
       <FlatList
-        data={vehicles}
+        data={reminders}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={renderVehicle}
+        renderItem={renderReminder}
         ListEmptyComponent={
           <Text style={[Typography.text, { color: colors.muted }]}>
-            Nema vozila.
+            Nema podsetnika za ovaj servis.
           </Text>
         }
       />
@@ -118,22 +119,16 @@ const VehiclesScreen = () => {
         onPress={() => setModalVisible(true)}
       >
         <Text style={[Typography.text, { color: colors.card }]}>
-          + Dodaj vozilo
+          + Dodaj podsetnik
         </Text>
       </TouchableOpacity>
 
       <Modal visible={modalVisible} animationType="slide">
         <View style={styles.modalContainer}>
-          <Text style={[Typography.title, { color: colors.card }]}>
-            Novo vozilo
+          <Text style={[Typography.title, { color: colors.primary }]}>
+            Novi podsetnik
           </Text>
-          {[
-            "Marka",
-            "Model",
-            "Godina proizvodnje",
-            "Kilometraža",
-            "Slika vozila",
-          ].map((field) => (
+          {["due_date", "due_mileage"].map((field) => (
             <TextInput
               key={field}
               placeholder={field.toUpperCase()}
@@ -141,26 +136,26 @@ const VehiclesScreen = () => {
               onChangeText={(text) =>
                 setForm((prev) => ({ ...prev, [field]: text }))
               }
-              style={[styles.card, Typography.text]}
+              style={styles.input}
               placeholderTextColor={colors.muted}
-              keyboardType={
-                field === "year" || field === "mileage" ? "numeric" : "default"
-              }
+              keyboardType={field === "due_mileage" ? "numeric" : "default"}
             />
           ))}
           <TouchableOpacity
             style={styles.saveButton}
-            onPress={handleAddVehicle}
+            onPress={handleSaveReminder}
           >
             <Text style={[Typography.text, { color: colors.card }]}>
               Sačuvaj
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setModalVisible(false)}
-            style={styles.cancelButton}
-          >
-            <Text style={[Typography.link, { color: colors.accent }]}>
+          <TouchableOpacity onPress={() => setModalVisible(false)}>
+            <Text
+              style={[
+                Typography.link,
+                { textAlign: "center", color: colors.card },
+              ]}
+            >
               Otkaži
             </Text>
           </TouchableOpacity>
@@ -170,7 +165,7 @@ const VehiclesScreen = () => {
   );
 };
 
-export default VehiclesScreen;
+export default ReminderScreen;
 
 const styles = StyleSheet.create({
   screen: {
@@ -185,7 +180,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    color: colors.primary,
   },
   addButton: {
     backgroundColor: colors.accent,
@@ -193,14 +187,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     marginTop: 10,
-    color: colors.card,
   },
   modalContainer: {
     flex: 1,
     padding: 20,
     justifyContent: "center",
     backgroundColor: colors.primary,
-    color: colors.card,
   },
   input: {
     borderWidth: 2,
@@ -218,14 +210,5 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginBottom: 10,
     alignItems: "center",
-    color: colors.card,
-  },
-  cancelButton: {
-    backgroundColor: colors.card,
-    padding: 12,
-    borderRadius: 6,
-    marginBottom: 10,
-    alignItems: "center",
-    color: colors.accent,
   },
 });

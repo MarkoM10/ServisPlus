@@ -11,13 +11,15 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
-import { useRoute } from "@react-navigation/native";
+import { useRoute, useNavigation } from "@react-navigation/native";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../types/types";
 import colors from "../styles/colors";
 import { Typography } from "../styles/typography";
+import { BASE_IP } from "../utils/utils";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-type ServicesRouteProp = RouteProp<RootStackParamList, "Servisi">;
+type ServicesRouteProp = RouteProp<RootStackParamList, "Services">;
 
 interface ServiceItem {
   id: number;
@@ -30,6 +32,8 @@ interface ServiceItem {
 
 const ServicesScreen = () => {
   const route = useRoute<ServicesRouteProp>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { vehicleId } = route.params;
 
   const [services, setServices] = useState<ServiceItem[]>([]);
@@ -50,7 +54,7 @@ const ServicesScreen = () => {
     try {
       const token = await AsyncStorage.getItem("token");
       const res = await axios.get(
-        `http://172.20.10.2:4000/vehicles/${vehicleId}/services`,
+        `http://${BASE_IP}:4000/vehicles/${vehicleId}/services`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -65,7 +69,7 @@ const ServicesScreen = () => {
     const token = await AsyncStorage.getItem("token");
     try {
       await axios.post(
-        `http://172.20.10.2:4000/vehicles/${vehicleId}/services`,
+        `http://${BASE_IP}:4000/vehicles/${vehicleId}/services`,
         {
           title: form.title,
           description: form.description,
@@ -93,7 +97,12 @@ const ServicesScreen = () => {
   };
 
   const renderService = ({ item }: { item: ServiceItem }) => (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() =>
+        navigation.navigate("Reminder", { serviceItemId: item.id })
+      }
+    >
       <Text style={[Typography.text, { color: colors.text }]}>
         {item.title}
       </Text>
@@ -108,7 +117,7 @@ const ServicesScreen = () => {
           Cena: {item.cost} RSD
         </Text>
       )}
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -135,15 +144,15 @@ const ServicesScreen = () => {
 
       <Modal visible={modalVisible} animationType="slide">
         <View style={styles.modalContainer}>
-          <Text style={[Typography.title, { color: colors.primary }]}>
+          <Text style={[Typography.title, { color: colors.card }]}>
             Nova servisna stavka
           </Text>
           {[
-            "title",
-            "description",
-            "service_date",
-            "mileage_at_service",
-            "cost",
+            "Naslov servisa",
+            "Opis",
+            "Datum servisa",
+            "Kilometraža prilikom servisa",
+            "Cena",
           ].map((field) => (
             <TextInput
               key={field}
@@ -152,7 +161,7 @@ const ServicesScreen = () => {
               onChangeText={(text) =>
                 setForm((prev) => ({ ...prev, [field]: text }))
               }
-              style={styles.input}
+              style={[styles.card, Typography.text]}
               placeholderTextColor={colors.muted}
               keyboardType={
                 field === "mileage_at_service" || field === "cost"
@@ -165,10 +174,15 @@ const ServicesScreen = () => {
             style={styles.saveButton}
             onPress={handleAddService}
           >
-            <Text style={[Typography.text, { color: "#fff" }]}>Sačuvaj</Text>
+            <Text style={[Typography.text, { color: colors.card }]}>
+              Sačuvaj
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setModalVisible(false)}>
-            <Text style={[Typography.link, { textAlign: "center" }]}>
+          <TouchableOpacity
+            onPress={() => setModalVisible(false)}
+            style={styles.cancelButton}
+          >
+            <Text style={[Typography.link, { color: colors.accent }]}>
               Otkaži
             </Text>
           </TouchableOpacity>
@@ -205,7 +219,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     justifyContent: "center",
-    backgroundColor: colors.background,
+    backgroundColor: colors.primary,
   },
   input: {
     borderWidth: 1,
@@ -218,10 +232,19 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   saveButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     padding: 12,
     borderRadius: 6,
     marginBottom: 10,
     alignItems: "center",
+    color: colors.card,
+  },
+  cancelButton: {
+    backgroundColor: colors.card,
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 10,
+    alignItems: "center",
+    color: colors.accent,
   },
 });

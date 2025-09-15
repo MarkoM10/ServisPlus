@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../types/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BASE_IP } from "../utils/utils";
 
 export default function RegisterScreen() {
   const [message, setMessage] = useState("");
@@ -15,7 +16,7 @@ export default function RegisterScreen() {
     setMessage("");
 
     try {
-      const res = await fetch("http://172.20.10.2:4000/auth/register", {
+      const res = await fetch(`http://${BASE_IP}:4000/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: "Marko", email, password }),

@@ -6,6 +6,8 @@ import RegisterScreen from "./screens/RegisterScreen";
 import { useFonts, Poppins_700Bold } from "@expo-google-fonts/poppins";
 import { OpenSans_400Regular } from "@expo-google-fonts/open-sans";
 import BottomTabs from "./navigation/BotomTabs";
+import ReminderScreen from "./screens/ReminderScreen";
+import ServicesScreen from "./screens/ServicesScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -25,6 +27,8 @@ export default function App() {
           component={BottomTabs}
           options={{ headerShown: false }}
         />
+        <Stack.Screen name="Services" component={ServicesScreen} />
+        <Stack.Screen name="Reminder" component={ReminderScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

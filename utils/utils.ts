@@ -1,0 +1,1 @@
+export const BASE_IP = "192.168.8.130";

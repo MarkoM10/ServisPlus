@@ -1,9 +1,12 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import VehiclesScreen from "../screens/VehiclesScreen";
-import ServicesScreen from "../screens/ServicesScreen";
-import RemindersScreen from "../screens/RemindersScreen";
-import { FaCar, FaTools, FaBell } from "react-icons/fa";
+import AllServicesScreen from "../screens/AllServicesScreen";
+import AllRemindersScreen from "../screens/AllRemindersScreen";
+import colors from "../styles/colors";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
 const Tab = createBottomTabNavigator();
 
@@ -12,32 +15,43 @@ export default function BottomTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#007bff",
-        tabBarInactiveTintColor: "#888",
-        tabBarStyle: { backgroundColor: "#f8f8f8" },
+        tabBarStyle: {
+          backgroundColor: colors.primary,
+          borderTopColor: "transparent",
+        },
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: "#fff",
+        tabBarLabelStyle: {
+          fontFamily: "OpenSans_400Regular",
+          fontSize: 12,
+        },
       }}
     >
       <Tab.Screen
         name="Vozila"
         component={VehiclesScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <FaCar color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome5 name="car" size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen
         name="Servisi"
-        component={ServicesScreen}
+        component={AllServicesScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <FaTools color={color} size={size} />
+            <MaterialCommunityIcons name="tools" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
         name="Podsetnici"
-        component={RemindersScreen}
+        component={AllRemindersScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <FaBell color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="notifications-outline" size={size} color={color} />
+          ),
         }}
       />
     </Tab.Navigator>
