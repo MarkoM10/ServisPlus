@@ -18,6 +18,12 @@ import { RootStackParamList } from "../types/types";
 import colors from "../styles/colors";
 import { Typography } from "../styles/typography";
 import { BASE_IP } from "../utils/utils";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import * as Notifications from "expo-notifications";
 
 type ReminderRouteProp = RouteProp<RootStackParamList, "Reminder">;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -33,7 +39,16 @@ const ReminderScreen = () => {
   const route = useRoute<ReminderRouteProp>();
   const navigation = useNavigation<NavigationProp>();
   const { serviceItemId } = route.params;
-
+  const fields = [
+    { label: "Naziv podsetnika", key: "title" },
+    { label: "Datum isteka", key: "due_date" },
+    { label: "Kilometraža", key: "due_mileage" },
+  ];
+  const [selectedReminderId, setSelectedReminderId] = useState<number | null>(
+    null
+  );
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const insets = useSafeAreaInsets();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [form, setForm] = useState({
@@ -44,6 +59,43 @@ const ReminderScreen = () => {
   useEffect(() => {
     fetchReminders();
   }, []);
+
+  enum SchedulableTriggerInputTypes {
+    TIME_INTERVAL = "timeInterval",
+    DAILY = "daily",
+    DATE = "date",
+  }
+
+  const sendImmediateReminder = async (title: string, dueDate: string) => {
+    const now = new Date();
+    const target = new Date(dueDate);
+
+    const diffInMs = target.getTime() - now.getTime();
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    let message = "";
+
+    if (diffInDays === 0) {
+      message = `Danas je vreme za: ${title}`;
+    } else if (diffInDays > 0) {
+      message = `Za ${diffInDays} dana treba da odradiš: ${title}`;
+    } else {
+      message = `Servis "${title}" je već prošao.`;
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "🔧 Servisni podsetnik",
+        body: message,
+        sound: "default",
+      },
+      trigger: {
+        type: SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 2,
+        repeats: false,
+      },
+    });
+  };
 
   const fetchReminders = async () => {
     try {
@@ -58,6 +110,18 @@ const ReminderScreen = () => {
     } catch (err) {
       console.error("Greška pri dohvatanju podsetnika:", err);
     }
+  };
+
+  const handleDeleteReminder = async () => {
+    const token = await AsyncStorage.getItem("token");
+    await axios.delete(
+      `http://${BASE_IP}:4000/reminders/${selectedReminderId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    setConfirmVisible(false);
+    fetchReminders();
   };
 
   const handleSaveReminder = async () => {
@@ -75,7 +139,9 @@ const ReminderScreen = () => {
       );
       setForm({ due_date: "", due_mileage: "" });
       setModalVisible(false);
-      Alert.alert("Uspeh", "Podsetnik je sačuvan.");
+
+      await sendImmediateReminder("Mali servis", form.due_date);
+
       fetchReminders();
     } catch (err) {
       console.error("Greška pri čuvanju podsetnika:", err);
@@ -94,12 +160,29 @@ const ReminderScreen = () => {
       <Text style={[Typography.text, { color: colors.text }]}>
         Status: {item.notified ? "Poslato" : "Čeka"}
       </Text>
+      <TouchableOpacity
+        style={styles.deleteIcon}
+        onPress={() => {
+          setSelectedReminderId(item.id);
+          setConfirmVisible(true);
+        }}
+      >
+        <Ionicons name="trash-outline" size={20} color={colors.error} />
+      </TouchableOpacity>
     </View>
   );
 
   return (
-    <View style={styles.screen}>
-      <Text style={[Typography.title, { color: colors.card }]}>
+    <SafeAreaView
+      style={[
+        styles.screen,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
+      edges={["top", "bottom"]}
+    >
+      <Text
+        style={[Typography.title, { color: colors.card, paddingBottom: 16 }]}
+      >
         Podsetnici za servis
       </Text>
 
@@ -114,6 +197,28 @@ const ReminderScreen = () => {
         }
       />
 
+      <Modal visible={confirmVisible} transparent animationType="fade">
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <Text style={[Typography.text, { color: colors.text }]}>
+              Da li želite da obrišete ovaj podsetnik?
+            </Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity onPress={() => setConfirmVisible(false)}>
+                <Text style={[Typography.link, { color: colors.accent }]}>
+                  Otkaži
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDeleteReminder}>
+                <Text style={[Typography.link, { color: colors.error }]}>
+                  Obriši
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <TouchableOpacity
         style={styles.addButton}
         onPress={() => setModalVisible(true)}
@@ -125,22 +230,28 @@ const ReminderScreen = () => {
 
       <Modal visible={modalVisible} animationType="slide">
         <View style={styles.modalContainer}>
-          <Text style={[Typography.title, { color: colors.primary }]}>
+          <Text
+            style={[
+              Typography.title,
+              { color: colors.card, paddingBottom: 16 },
+            ]}
+          >
             Novi podsetnik
           </Text>
-          {["due_date", "due_mileage"].map((field) => (
+          {fields.map(({ label, key }) => (
             <TextInput
-              key={field}
-              placeholder={field.toUpperCase()}
-              value={form[field as keyof typeof form]}
+              key={key}
+              placeholder={label.toUpperCase()}
+              value={form[key as keyof typeof form]}
               onChangeText={(text) =>
-                setForm((prev) => ({ ...prev, [field]: text }))
+                setForm((prev) => ({ ...prev, [key]: text }))
               }
               style={styles.input}
               placeholderTextColor={colors.muted}
-              keyboardType={field === "due_mileage" ? "numeric" : "default"}
+              keyboardType={key === "due_mileage" ? "numeric" : "default"}
             />
           ))}
+
           <TouchableOpacity
             style={styles.saveButton}
             onPress={handleSaveReminder}
@@ -149,19 +260,17 @@ const ReminderScreen = () => {
               Sačuvaj
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setModalVisible(false)}>
-            <Text
-              style={[
-                Typography.link,
-                { textAlign: "center", color: colors.card },
-              ]}
-            >
+          <TouchableOpacity
+            onPress={() => setModalVisible(false)}
+            style={styles.cancelButton}
+          >
+            <Text style={[Typography.link, { color: colors.accent }]}>
               Otkaži
             </Text>
           </TouchableOpacity>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -210,5 +319,37 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginBottom: 10,
     alignItems: "center",
+    color: colors.card,
+  },
+  cancelButton: {
+    backgroundColor: colors.card,
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 10,
+    alignItems: "center",
+    color: colors.accent,
+  },
+  deleteIcon: {
+    position: "absolute",
+    top: 35,
+    right: 10,
+  },
+  confirmOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  confirmBox: {
+    backgroundColor: colors.card,
+    padding: 20,
+    borderRadius: 10,
+    width: "80%",
+  },
+  confirmActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 20,
+    gap: 10,
   },
 });

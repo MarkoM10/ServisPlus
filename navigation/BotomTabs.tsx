@@ -54,6 +54,15 @@ export default function BottomTabs() {
           ),
         }}
       />
+      {/* <Tab.Screen
+        name="Notifikacija"
+        component={NotificationTestScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Text style={{ fontSize: size, color }}>🔔</Text>
+          ),
+        }}
+      /> */}
     </Tab.Navigator>
   );
 }

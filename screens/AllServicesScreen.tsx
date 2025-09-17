@@ -1,10 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { View, Text, FlatList, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import colors from "../styles/colors";
 import { Typography } from "../styles/typography";
 import { BASE_IP } from "../utils/utils";
+import { useFocusEffect } from "@react-navigation/native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 interface Vehicle {
   id: number;
@@ -30,10 +35,13 @@ interface ServiceItem {
 
 const AllServicesScreen = () => {
   const [services, setServices] = useState<ServiceItem[]>([]);
+  const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    fetchServices();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchServices();
+    }, [])
+  );
 
   const fetchServices = async () => {
     try {
@@ -71,8 +79,16 @@ const AllServicesScreen = () => {
   );
 
   return (
-    <View style={styles.screen}>
-      <Text style={[Typography.title, { color: colors.card }]}>
+    <SafeAreaView
+      style={[
+        styles.screen,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
+      edges={["top", "bottom"]}
+    >
+      <Text
+        style={[Typography.title, { color: colors.card, paddingBottom: 16 }]}
+      >
         Moji servisi
       </Text>
       <FlatList
@@ -85,7 +101,7 @@ const AllServicesScreen = () => {
           </Text>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

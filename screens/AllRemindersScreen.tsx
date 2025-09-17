@@ -1,10 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { View, Text, FlatList, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import colors from "../styles/colors";
 import { Typography } from "../styles/typography";
 import { BASE_IP } from "../utils/utils";
+import { useFocusEffect } from "@react-navigation/native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 interface Vehicle {
   id: number;
@@ -29,10 +34,13 @@ interface Reminder {
 
 const AllRemindersScreen = () => {
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    fetchReminders();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchReminders();
+    }, [])
+  );
 
   const fetchReminders = async () => {
     try {
@@ -62,8 +70,16 @@ const AllRemindersScreen = () => {
   );
 
   return (
-    <View style={styles.screen}>
-      <Text style={[Typography.title, { color: colors.card }]}>
+    <SafeAreaView
+      style={[
+        styles.screen,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
+      edges={["top", "bottom"]}
+    >
+      <Text
+        style={[Typography.title, { color: colors.card, paddingBottom: 16 }]}
+      >
         Moji podsetnici
       </Text>
       <FlatList
@@ -76,7 +92,7 @@ const AllRemindersScreen = () => {
           </Text>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

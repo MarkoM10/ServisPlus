@@ -18,8 +18,15 @@ import colors from "../styles/colors";
 import { Typography } from "../styles/typography";
 import { BASE_IP } from "../utils/utils";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import { EventRegister } from "react-native-event-listeners";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 type ServicesRouteProp = RouteProp<RootStackParamList, "Services">;
+EventRegister.emit("serviceAdded");
 
 interface ServiceItem {
   id: number;
@@ -35,7 +42,18 @@ const ServicesScreen = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { vehicleId } = route.params;
-
+  const insets = useSafeAreaInsets();
+  const fields = [
+    { label: "Naslov servisa", key: "title" },
+    { label: "Opis", key: "description" },
+    { label: "Datum servisa", key: "service_date" },
+    { label: "Kilometraža prilikom servisa", key: "mileage_at_service" },
+    { label: "Cena", key: "cost" },
+  ];
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(
+    null
+  );
+  const [confirmVisible, setConfirmVisible] = useState(false);
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [form, setForm] = useState({
@@ -63,6 +81,15 @@ const ServicesScreen = () => {
     } catch (err) {
       console.error("Greška pri dohvatanju servisa:", err);
     }
+  };
+
+  const handleDeleteService = async () => {
+    const token = await AsyncStorage.getItem("token");
+    await axios.delete(`http://${BASE_IP}:4000/services/${selectedServiceId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setConfirmVisible(false);
+    fetchServices();
   };
 
   const handleAddService = async () => {
@@ -97,32 +124,51 @@ const ServicesScreen = () => {
   };
 
   const renderService = ({ item }: { item: ServiceItem }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() =>
-        navigation.navigate("Reminder", { serviceItemId: item.id })
-      }
-    >
-      <Text style={[Typography.text, { color: colors.text }]}>
-        {item.title}
-      </Text>
-      <Text style={[Typography.text, { color: colors.muted }]}>
-        Datum: {item.service_date}
-      </Text>
-      <Text style={[Typography.text, { color: colors.muted }]}>
-        Kilometraža: {item.mileage_at_service} km
-      </Text>
-      {item.cost && (
-        <Text style={[Typography.text, { color: colors.muted }]}>
-          Cena: {item.cost} RSD
+    <>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() =>
+          navigation.navigate("Reminder", { serviceItemId: item.id })
+        }
+      >
+        <Text style={[Typography.text, { color: colors.text }]}>
+          {item.title}
         </Text>
-      )}
-    </TouchableOpacity>
+        <Text style={[Typography.text, { color: colors.muted }]}>
+          Datum: {item.service_date}
+        </Text>
+        <Text style={[Typography.text, { color: colors.muted }]}>
+          Kilometraža: {item.mileage_at_service} km
+        </Text>
+        {item.cost && (
+          <Text style={[Typography.text, { color: colors.muted }]}>
+            Cena: {item.cost} RSD
+          </Text>
+        )}
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.deleteIcon}
+        onPress={() => {
+          setSelectedServiceId(item.id);
+          setConfirmVisible(true);
+        }}
+      >
+        <Ionicons name="trash-outline" size={20} color={colors.error} />
+      </TouchableOpacity>
+    </>
   );
 
   return (
-    <View style={styles.screen}>
-      <Text style={[Typography.title, { color: "#fff" }]}>Servisne stavke</Text>
+    <SafeAreaView
+      style={[
+        styles.screen,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
+      edges={["top", "bottom"]}
+    >
+      <Text style={[Typography.title, { color: "#fff", paddingBottom: 16 }]}>
+        Servisne stavke
+      </Text>
 
       <FlatList
         data={services}
@@ -134,6 +180,28 @@ const ServicesScreen = () => {
           </Text>
         }
       />
+
+      <Modal visible={confirmVisible} transparent animationType="fade">
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <Text style={[Typography.text, { color: colors.text }]}>
+              Da li želite da obrišete ovu servisnu stavku?
+            </Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity onPress={() => setConfirmVisible(false)}>
+                <Text style={[Typography.link, { color: colors.accent }]}>
+                  Otkaži
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDeleteService}>
+                <Text style={[Typography.link, { color: colors.error }]}>
+                  Obriši
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <TouchableOpacity
         style={styles.addButton}
@@ -147,29 +215,24 @@ const ServicesScreen = () => {
           <Text style={[Typography.title, { color: colors.card }]}>
             Nova servisna stavka
           </Text>
-          {[
-            "Naslov servisa",
-            "Opis",
-            "Datum servisa",
-            "Kilometraža prilikom servisa",
-            "Cena",
-          ].map((field) => (
+          {fields.map(({ label, key }) => (
             <TextInput
-              key={field}
-              placeholder={field.toUpperCase()}
-              value={form[field as keyof typeof form]}
+              key={key}
+              placeholder={label.toUpperCase()}
+              value={form[key as keyof typeof form]}
               onChangeText={(text) =>
-                setForm((prev) => ({ ...prev, [field]: text }))
+                setForm((prev) => ({ ...prev, [key]: text }))
               }
-              style={[styles.card, Typography.text]}
+              style={styles.input}
               placeholderTextColor={colors.muted}
               keyboardType={
-                field === "mileage_at_service" || field === "cost"
+                key === "mileage_at_service" || key === "cost"
                   ? "numeric"
                   : "default"
               }
             />
           ))}
+
           <TouchableOpacity
             style={styles.saveButton}
             onPress={handleAddService}
@@ -188,7 +251,7 @@ const ServicesScreen = () => {
           </TouchableOpacity>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -229,7 +292,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     fontFamily: "OpenSans_400Regular",
     fontSize: 16,
-    color: colors.text,
+    color: colors.card,
   },
   saveButton: {
     backgroundColor: colors.accent,
@@ -246,5 +309,28 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     alignItems: "center",
     color: colors.accent,
+  },
+  deleteIcon: {
+    position: "absolute",
+    top: 50,
+    right: 10,
+  },
+  confirmOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  confirmBox: {
+    backgroundColor: colors.card,
+    padding: 20,
+    borderRadius: 10,
+    width: "80%",
+  },
+  confirmActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 20,
+    gap: 10,
   },
 });
